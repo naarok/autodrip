@@ -1,7 +1,13 @@
+import RPi.GPIO as GPIO
+
+POWER_ON_GPIO=23
+
 print("Drip")
 
 print("Start")
 
+def setup():
+	GPIO.setmode(GPIO.BCM)
 
 def check_water_level():
 	result = input("Is water level good? ")
@@ -21,13 +27,13 @@ def has_more_sensors():
 def get_next_sensor():
 	pass
 
-
 def check_moisture(sensor):
 	result = input("Is dry? ")
 	if result == "Y":
 		return True
 	else:
 		return False
+
 def open_drip_line():
 	print("Open Drip Line")
 
@@ -36,6 +42,12 @@ def close_drip_line():
 
 def turn_12v_on():
 	print("Turn 12V on")
+	GPIO.setup(POWER_ON_GPIO, GPIO.OUT)
+	GPIO.output(POWER_ON_GPIO, GPIO.LOW)
+
+def turn_12v_off():
+	print("Turn 12V off")
+	GPIO.setup(POWER_ON_GPIO, GPIO.OUT)
 
 def turn_pump_on():
 	print("Turn Pump On")
@@ -43,11 +55,10 @@ def turn_pump_on():
 def turn_pump_off():
 	print("Turn Pump Off")
 
-def turn_12v_off():
-	print("Turn 12V off")
-
 def wait_water_time():
 	print("Wait water time")
+
+setup()
 
 water_level = check_water_level()
 
