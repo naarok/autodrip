@@ -2,19 +2,24 @@ import RPi.GPIO as GPIO
 import time
 import libioplus
 
-POWER_ON_GPIO=26
 ALL_YES=True
-NUMBER_SENSORS=1
+SIMULATE=True
+
+POWER_ON_GPIO=26
 SLEEP_TIME=10
 
-current_sensor=1
+NUM_SENSORS=4
+SENSOR_START_RELAY=1
+
+PUMP_RELAY=5
 
 print("Drip")
 
 print("Start")
 
 def setup():
-	GPIO.setmode(GPIO.BCM)
+	if not SIMULATE:
+		GPIO.setmode(GPIO.BCM)
 
 def check_water_level():
 	if ALL_YES == True:
@@ -27,20 +32,6 @@ def check_water_level():
 		return False
 
 
-def has_more_sensors():
-	if ALL_YES:
-		if current_sensor <= NUMBER_SENSORS:
-			return True
-
-	result = input("Has more sensors? ")
-	if result == "Y":
-		return True
-	else:
-		return False
-
-def get_next_sensor():
-	pass
-
 def check_moisture(sensor):
 	if ALL_YES == True:
 		return True
@@ -51,31 +42,39 @@ def check_moisture(sensor):
 	else:
 		return False
 
-def open_drip_line():
-	print("Open Drip Line")
-	libioplus.setRelayCh(0, current_sensor+4, 1)
+def open_drip_line(sensor):
+	print("Open Drip Line " + str(sensor+SENSOR_START_RELAY))
+	if not SIMULATE:
+		libioplus.setRelayCh(0, sensor+SENSOR_START_RELAY, 1)
 
-def close_drip_line():
-	print("CLose Drip Line")
-	libioplus.setRelayCh(0, current_sensor+4, 0)
+def close_drip_line(sensor):
+	print("Close Drip Line " + str(sensor+SENSOR_START_RELAY))
+	if not SIMULATE:
+		libioplus.setRelayCh(0, sensor+SENSOR_START_RELAY, 0)
 
 def turn_12v_on():
 	print("Turn 12V on")
-	GPIO.setup(POWER_ON_GPIO, GPIO.OUT)
-	GPIO.output(POWER_ON_GPIO, GPIO.LOW)
+	if not SIMULATE:
+		GPIO.setup(POWER_ON_GPIO, GPIO.OUT)
+		GPIO.output(POWER_ON_GPIO, GPIO.LOW)
 
 def turn_12v_off():
 	print("Turn 12V off")
-	GPIO.setup(POWER_ON_GPIO, GPIO.IN)
+	if not SIMULATE:
+		GPIO.setup(POWER_ON_GPIO, GPIO.IN)
 
 def turn_pump_on():
 	print("Turn Pump On")
+	if not SIMULATE:
+	 	libioplus.setRelayCh(0,PUMP_RELAY,1)
 
 def turn_pump_off():
 	print("Turn Pump Off")
+	if not SIMULATE:
+	 	libioplus.setRelayCh(0,PUMP_RELAY,0)
 
 def wait_water_time():
-	print("Wait water time")
+	print("Wait water time: " + str(SLEEP_TIME))
 	time.sleep(SLEEP_TIME)
 
 setup()
@@ -83,21 +82,23 @@ setup()
 water_level = check_water_level()
 
 if water_level == True:
-	more_sensors = has_more_sensors()
+	# more_sensors = has_more_sensors()
 
-	if more_sensors == True:
-		next_sensor = get_next_sensor()
+	# if more_sensors == True:
+	for sensor in range(NUM_SENSORS):
+		# next_sensor = get_next_sensor()
 
-		is_dry = check_moisture(next_sensor)
+		is_dry = check_moisture(sensor)
 
 		if is_dry == True:
 			turn_12v_on()
-			open_drip_line()
+			open_drip_line(sensor)
+			turn_pump_on()
 			wait_water_time()
-			close_drip_line()
+			close_drip_line(sensor)
 
 
-#turn_pump_off()
+turn_pump_off()
 turn_12v_off()
 
 print("Done")
