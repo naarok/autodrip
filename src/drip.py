@@ -1,6 +1,13 @@
 import RPi.GPIO as GPIO
+import time
+import libioplus
 
-POWER_ON_GPIO=23
+POWER_ON_GPIO=26
+ALL_YES=True
+NUMBER_SENSORS=1
+SLEEP_TIME=10
+
+current_sensor=1
 
 print("Drip")
 
@@ -10,6 +17,9 @@ def setup():
 	GPIO.setmode(GPIO.BCM)
 
 def check_water_level():
+	if ALL_YES == True:
+		return True
+
 	result = input("Is water level good? ")
 	if result == "Y":
 		return True
@@ -18,6 +28,10 @@ def check_water_level():
 
 
 def has_more_sensors():
+	if ALL_YES:
+		if current_sensor <= NUMBER_SENSORS:
+			return True
+
 	result = input("Has more sensors? ")
 	if result == "Y":
 		return True
@@ -28,6 +42,9 @@ def get_next_sensor():
 	pass
 
 def check_moisture(sensor):
+	if ALL_YES == True:
+		return True
+
 	result = input("Is dry? ")
 	if result == "Y":
 		return True
@@ -36,9 +53,11 @@ def check_moisture(sensor):
 
 def open_drip_line():
 	print("Open Drip Line")
+	libioplus.setRelayCh(0, current_sensor+4, 1)
 
 def close_drip_line():
 	print("CLose Drip Line")
+	libioplus.setRelayCh(0, current_sensor+4, 0)
 
 def turn_12v_on():
 	print("Turn 12V on")
@@ -47,7 +66,7 @@ def turn_12v_on():
 
 def turn_12v_off():
 	print("Turn 12V off")
-	GPIO.setup(POWER_ON_GPIO, GPIO.OUT)
+	GPIO.setup(POWER_ON_GPIO, GPIO.IN)
 
 def turn_pump_on():
 	print("Turn Pump On")
@@ -57,6 +76,7 @@ def turn_pump_off():
 
 def wait_water_time():
 	print("Wait water time")
+	time.sleep(SLEEP_TIME)
 
 setup()
 
@@ -71,13 +91,13 @@ if water_level == True:
 		is_dry = check_moisture(next_sensor)
 
 		if is_dry == True:
-			open_drip_line()
 			turn_12v_on()
+			open_drip_line()
 			wait_water_time()
 			close_drip_line()
 
 
-turn_pump_off()
+#turn_pump_off()
 turn_12v_off()
 
 print("Done")
