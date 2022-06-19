@@ -13,6 +13,9 @@ SENSOR_START_RELAY=1
 
 PUMP_RELAY=5
 
+MOISTURE_VCC_GPIO=21
+MOISTURE_ADC=8
+
 print("Drip")
 
 print("Start")
@@ -20,6 +23,7 @@ print("Start")
 def setup():
 	if not SIMULATE:
 		GPIO.setmode(GPIO.BCM)
+		GPIO.setup(MOISTURE_VCC_GPIO, GPIO.IN)
 
 def check_water_level():
 	if ALL_YES == True:
@@ -32,9 +36,23 @@ def check_water_level():
 		return False
 
 
-def check_moisture(sensor):
+def is_dry(sensor):
+	totally_dry = 1.3 #V
+	ok_moist = 2.1 #V
+
 	if ALL_YES == True:
 		return True
+
+	if not SIMULATE:
+		GPIO.setup(MOISTURE_VCC_GPIO, GPIO.OUT)
+		GPIO.output(MOISTURE_VCC_GPIO, GPIO.HIGH)
+		time.sleep(1)
+		value = libioplus.getAdcV(0, MOISTURE_ADC)		
+		GPIO.output(MOISTURE_VCC_GPIO, GPIO.LOW)
+		GPIO.setup(MOISTURE_VCC_GPIO, GPIO.IN)
+
+		print("Drip value: "+str(value))
+		return value < ok_moist
 
 	result = input("Is dry? ")
 	if result == "Y":
@@ -77,28 +95,27 @@ def wait_water_time():
 	print("Wait water time: " + str(SLEEP_TIME))
 	time.sleep(SLEEP_TIME)
 
-setup()
+try:
+	setup()
 
-water_level = check_water_level()
+	water_level = check_water_level()
 
-if water_level == True:
-	# more_sensors = has_more_sensors()
+	if water_level == True:
+		for sensor in range(NUM_SENSORS):
+			needs_water = is_dry(sensor)
 
-	# if more_sensors == True:
-	for sensor in range(NUM_SENSORS):
-		# next_sensor = get_next_sensor()
+			print("Needs water: " +str(needs_water))
+			if needs_water == True:
+				turn_12v_on()
+				open_drip_line(sensor)
+				turn_pump_on()
+				wait_water_time()
+				close_drip_line(sensor)
 
-		is_dry = check_moisture(sensor)
+	turn_pump_off()
+	turn_12v_off()
 
-		if is_dry == True:
-			turn_12v_on()
-			open_drip_line(sensor)
-			turn_pump_on()
-			wait_water_time()
-			close_drip_line(sensor)
-
-
-turn_pump_off()
-turn_12v_off()
+finally:
+	GPIO.cleanup()
 
 print("Done")
