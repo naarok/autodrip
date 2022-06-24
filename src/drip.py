@@ -1,12 +1,14 @@
 import RPi.GPIO as GPIO
 import time
 import libioplus
+import random
+import mqtt
 
 ALL_YES=True
 SIMULATE=True
 
 POWER_ON_GPIO=26
-SLEEP_TIME=10
+SLEEP_TIME=1 #10
 
 NUM_SENSORS=4
 SENSOR_START_RELAY=1
@@ -60,6 +62,34 @@ def is_dry(sensor):
 	else:
 		return False
 
+def check_all_moistures():
+	totally_dry = 1.3 #V
+	ok_moist = 2.1 #V
+
+	results = {}
+	results["any"] = False
+
+	if not SIMULATE:
+		GPIO.setup(MOISTURE_VCC_GPIO, GPIO.OUT)
+		GPIO.output(MOISTURE_VCC_GPIO, GPIO.HIGH)
+		time.sleep(1)
+
+	for sensor in range(NUM_SENSORS):
+		if not SIMULATE:
+			value = libioplus.getAdcV(0, MOISTURE_ADC)		
+		else:
+			value = random.randint(13, 32)/10
+
+		results["m"+str(sensor)] = value
+		results["w"+str(sensor)] = (value < ok_moist)
+		results["any"] |= results["w"+str(sensor)]
+
+	if not SIMULATE:
+		GPIO.output(MOISTURE_VCC_GPIO, GPIO.LOW)
+		GPIO.setup(MOISTURE_VCC_GPIO, GPIO.IN)
+
+	return results
+
 def open_drip_line(sensor):
 	print("Open Drip Line " + str(sensor+SENSOR_START_RELAY))
 	if not SIMULATE:
@@ -100,22 +130,39 @@ try:
 
 	water_level = check_water_level()
 
+	success = False;
+	moistures = check_all_moistures()
+	moistures["timestamp"] = time.time()
+
 	if water_level == True:
-		for sensor in range(NUM_SENSORS):
-			needs_water = is_dry(sensor)
+		print(moistures)
 
-			print("Needs water: " +str(needs_water))
-			if needs_water == True:
-				turn_12v_on()
-				open_drip_line(sensor)
-				turn_pump_on()
-				wait_water_time()
+		if moistures["any"]:
+			turn_12v_on()
+			turn_pump_on()
+
+			for sensor in range(NUM_SENSORS):
+				if moistures["w"+str(sensor)]:
+					open_drip_line(sensor)
+
+			wait_water_time()
+
+			turn_pump_off()
+
+			for sensor in range(NUM_SENSORS):
 				close_drip_line(sensor)
+	
+		success = True
 
-	turn_pump_off()
 	turn_12v_off()
 
 finally:
-	GPIO.cleanup()
+	del moistures["any"]
+
+	pub = mqtt.MQTT()
+	pub.publish(moistures)
+
+	if not SIMULATE:
+		GPIO.cleanup()
 
 print("Done")
