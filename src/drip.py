@@ -5,15 +5,16 @@ import random
 import mqtt
 
 ALL_YES=True
-SIMULATE=True
+SIMULATE=False
+PUBLISH_MQTT=False
 
 POWER_ON_GPIO=26
-SLEEP_TIME=1 #10
+SLEEP_TIME=15
 
 NUM_SENSORS=4
 SENSOR_START_RELAY=1
 
-PUMP_RELAY=5
+SOLENOID_RELAY=5-1 # Loop is 1 based
 
 MOISTURE_VCC_GPIO=21
 MOISTURE_ADC=8
@@ -75,10 +76,12 @@ def check_all_moistures():
 		time.sleep(1)
 
 	for sensor in range(NUM_SENSORS):
-		if not SIMULATE:
-			value = libioplus.getAdcV(0, MOISTURE_ADC)		
-		else:
-			value = random.randint(13, 32)/10
+		# if not SIMULATE:
+		# 	value = libioplus.getAdcV(0, MOISTURE_ADC)		
+		# else:
+		# 	value = random.randint(13, 32)/10
+
+		value = 0 # force dry
 
 		results["m"+str(sensor)] = value
 		results["w"+str(sensor)] = (value < ok_moist)
@@ -91,18 +94,19 @@ def check_all_moistures():
 	return results
 
 def open_drip_line(sensor):
-	print("Open Drip Line " + str(sensor+SENSOR_START_RELAY))
+	print("Open Drip Line " + str(sensor+SOLENOID_RELAY))
 	if not SIMULATE:
-		libioplus.setRelayCh(0, sensor+SENSOR_START_RELAY, 1)
+		libioplus.setRelayCh(0, sensor+SOLENOID_RELAY, 1)
 
 def close_drip_line(sensor):
-	print("Close Drip Line " + str(sensor+SENSOR_START_RELAY))
+	print("Close Drip Line " + str(sensor+SOLENOID_RELAY))
 	if not SIMULATE:
-		libioplus.setRelayCh(0, sensor+SENSOR_START_RELAY, 0)
+		libioplus.setRelayCh(0, sensor+SOLENOID_RELAY, 0)
 
 def turn_12v_on():
 	print("Turn 12V on")
 	if not SIMULATE:
+		print("REALLY")
 		GPIO.setup(POWER_ON_GPIO, GPIO.OUT)
 		GPIO.output(POWER_ON_GPIO, GPIO.LOW)
 
@@ -139,7 +143,7 @@ try:
 
 		if moistures["any"]:
 			turn_12v_on()
-			turn_pump_on()
+			# turn_pump_on()
 
 			for sensor in range(NUM_SENSORS):
 				if moistures["w"+str(sensor)]:
@@ -147,7 +151,7 @@ try:
 
 			wait_water_time()
 
-			turn_pump_off()
+			# turn_pump_off()
 
 			for sensor in range(NUM_SENSORS):
 				close_drip_line(sensor)
@@ -157,10 +161,10 @@ try:
 	turn_12v_off()
 
 finally:
-	del moistures["any"]
-
-	pub = mqtt.MQTT()
-	pub.publish(moistures)
+	if PUBLISH_MQTT:
+		del moistures["any"]
+		pub = mqtt.MQTT()
+		pub.publish(moistures)
 
 	if not SIMULATE:
 		GPIO.cleanup()
