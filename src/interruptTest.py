@@ -1,3 +1,4 @@
+import libioplus
 import RPi.GPIO as GPIO
 import signal
 import sys
@@ -6,6 +7,10 @@ import threading
 
 BUTTON_GPIO=25
 POWER_ON_GPIO=26
+
+SOLENOID_RELAY=5
+
+NUM_SOLENOIDS=1
 
 fan_on = threading.Event()
 fan_on.clear()
@@ -32,14 +37,34 @@ def turn_12v_off():
 	print("Turn 12V off: fan_on = " + str(fan_on.is_set()))
 	GPIO.setup(POWER_ON_GPIO, GPIO.IN)
 
+def open_drip_line(sensor):
+	print("Open Drip Line " + str(sensor+SOLENOID_RELAY))
+	libioplus.setRelayCh(0, sensor+SOLENOID_RELAY, 1)
+
+def close_drip_line(sensor):
+	print("Close Drip Line " + str(sensor+SOLENOID_RELAY))
+	libioplus.setRelayCh(0, sensor+SOLENOID_RELAY, 0)
+
 def switch_callback(channel):
 	time.sleep(0.1) #need to wait a moment for switch to stablize
 
 	if not GPIO.input(BUTTON_GPIO):
 		print("Switch on!")
 		turn_12v_on()
+		time.sleep(1)
+
+		for sensor in range(NUM_SOLENOIDS):
+			open_drip_line(sensor)
+			time.sleep(0.5)
+
 	else:
 		print("Switch off!")
+
+		for sensor in range(NUM_SOLENOIDS):
+			close_drip_line(sensor)
+			time.sleep(0.5)
+	
+		time.sleep(1)
 		turn_12v_off()
 
 def test():

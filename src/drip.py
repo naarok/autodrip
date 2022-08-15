@@ -8,16 +8,17 @@ ALL_YES=True
 SIMULATE=False
 PUBLISH_MQTT=False
 
-POWER_ON_GPIO=26
+POWER_ON_GPIO=20
 SLEEP_TIME=15
 
-NUM_SENSORS=4
-SENSOR_START_RELAY=1
+NUM_SENSORS=2
 
-SOLENOID_RELAY=5-1 # Loop is 1 based
+SOLENOID_START_RELAY=5
 
 MOISTURE_VCC_GPIO=21
-MOISTURE_ADC=8
+MOISTURE_ADC=1
+
+PUMP_POWER_RELAY=1
 
 print("Drip")
 
@@ -27,6 +28,7 @@ def setup():
 	if not SIMULATE:
 		GPIO.setmode(GPIO.BCM)
 		GPIO.setup(MOISTURE_VCC_GPIO, GPIO.IN)
+		GPIO.setup(POWER_ON_GPIO, GPIO.IN)
 
 def check_water_level():
 	if ALL_YES == True:
@@ -39,6 +41,7 @@ def check_water_level():
 		return False
 
 
+# NOT USED
 def is_dry(sensor):
 	totally_dry = 1.3 #V
 	ok_moist = 2.1 #V
@@ -76,12 +79,12 @@ def check_all_moistures():
 		time.sleep(1)
 
 	for sensor in range(NUM_SENSORS):
-		# if not SIMULATE:
-		# 	value = libioplus.getAdcV(0, MOISTURE_ADC)		
-		# else:
-		# 	value = random.randint(13, 32)/10
+		if not SIMULATE:
+			value = libioplus.getAdcV(0, MOISTURE_ADC+sensor)		
+		else:
+			value = random.randint(13, 32)/10
 
-		value = 0 # force dry
+		value = True
 
 		results["m"+str(sensor)] = value
 		results["w"+str(sensor)] = (value < ok_moist)
@@ -94,14 +97,14 @@ def check_all_moistures():
 	return results
 
 def open_drip_line(sensor):
-	print("Open Drip Line " + str(sensor+SOLENOID_RELAY))
+	print("Open Drip Line " + str(sensor+SOLENOID_START_RELAY))
 	if not SIMULATE:
-		libioplus.setRelayCh(0, sensor+SOLENOID_RELAY, 1)
+		libioplus.setRelayCh(0, sensor+SOLENOID_START_RELAY, 1)
 
 def close_drip_line(sensor):
-	print("Close Drip Line " + str(sensor+SOLENOID_RELAY))
+	print("Close Drip Line " + str(sensor+SOLENOID_START_RELAY))
 	if not SIMULATE:
-		libioplus.setRelayCh(0, sensor+SOLENOID_RELAY, 0)
+		libioplus.setRelayCh(0, sensor+SOLENOID_START_RELAY, 0)
 
 def turn_12v_on():
 	print("Turn 12V on")
@@ -118,12 +121,12 @@ def turn_12v_off():
 def turn_pump_on():
 	print("Turn Pump On")
 	if not SIMULATE:
-	 	libioplus.setRelayCh(0,PUMP_RELAY,1)
+	 	libioplus.setRelayCh(0,PUMP_POWER_RELAY,1)
 
 def turn_pump_off():
 	print("Turn Pump Off")
 	if not SIMULATE:
-	 	libioplus.setRelayCh(0,PUMP_RELAY,0)
+	 	libioplus.setRelayCh(0,PUMP_POWER_RELAY,0)
 
 def wait_water_time():
 	print("Wait water time: " + str(SLEEP_TIME))
@@ -141,24 +144,30 @@ try:
 	if water_level == True:
 		print(moistures)
 
-		if moistures["any"]:
-			turn_12v_on()
-			# turn_pump_on()
+		if True: # moistures["any"]:
+			# turn_12v_on()
+			# time.sleep(1)
+
+			turn_pump_on()
+			time.sleep(1)
 
 			for sensor in range(NUM_SENSORS):
 				if moistures["w"+str(sensor)]:
 					open_drip_line(sensor)
+					time.sleep(0.5)
 
 			wait_water_time()
 
-			# turn_pump_off()
+			turn_pump_off()
+			time.sleep(1)
 
 			for sensor in range(NUM_SENSORS):
 				close_drip_line(sensor)
+				time.sleep(0.5)
 	
 		success = True
 
-	turn_12v_off()
+	# turn_12v_off()
 
 finally:
 	if PUBLISH_MQTT:

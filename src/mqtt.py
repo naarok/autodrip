@@ -1,9 +1,9 @@
 # python3 pubsub.py --topic topic_1 --ca_file ~/certs/Amazon-root-CA-1.pem --cert ~/certs/certificate.pem.crt --key ~/certs/private.pem.key --endpoint a33s1cpy5ai1k0-ats.iot.us-east-1.amazonaws.com
+import json
+import sys
 
 from awscrt import mqtt
 from awsiot import mqtt_connection_builder
-import json
-import sys
 
 # Callback when connection is accidentally lost.
 def on_connection_interrupted(connection, error, **kwargs):
@@ -11,12 +11,12 @@ def on_connection_interrupted(connection, error, **kwargs):
 
 
 def on_resubscribe_complete(resubscribe_future):
-        resubscribe_results = resubscribe_future.result()
-        print("Resubscribe results: {}".format(resubscribe_results))
+    resubscribe_results = resubscribe_future.result()
+    print("Resubscribe results: {}".format(resubscribe_results))
 
-        for topic, qos in resubscribe_results['topics']:
-            if qos is None:
-                sys.exit("Server rejected resubscribe to topic: {}".format(topic))
+    for topic, qos in resubscribe_results['topics']:
+        if qos is None:
+            sys.exit("Server rejected resubscribe to topic: {}".format(topic))
 
 
 # Callback when an interrupted connection is re-established.
@@ -33,9 +33,9 @@ def on_connection_resumed(connection, return_code, session_present, **kwargs):
 
 class MQTT:
     TOPIC = "device/23/data"
-    CA_FILE = "/home/pi//certs/Amazon-root-CA-1.pem"
-    CERT = "/home/pi//certs/certificate.pem.crt"
-    KEY  = "/home/pi//certs/private.pem.key"
+    CA_FILE = "/home/pi/certs/Amazon-root-CA-1.pem"
+    CERT = "/home/pi/certs/certificate.pem.crt"
+    KEY = "/home/pi/certs/private.pem.key"
     ENDPOINT = "a33s1cpy5ai1k0-ats.iot.us-east-1.amazonaws.com"
 
     def build_mqtt_connection(self):
@@ -61,7 +61,7 @@ class MQTT:
 
         # Future.result() waits until a result is available
         connect_future.result()
-        print("Connected!")
+        print("MQTT Connected!")
 
         message_json = json.dumps(message)
         mqtt_connection.publish(
